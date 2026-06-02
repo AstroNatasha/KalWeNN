@@ -624,3 +624,8 @@ WiSARD simples: 0.948148 +- 0.041243
 ```
 
 A interpretacao principal e que a atualizacao tipo Kalman produziu memorias mais estaveis para este problema, suavizando a evidencia armazenada em cada endereco. O custo computacional aumentou pouco neste experimento, mas essa conclusao deve ser reavaliada em bases maiores.
+
+## Próximos passos
+Pedir análise de hiperparâmetros e escolher os melhores para cada dataset
+
+Avaliar as melhores métricas além das que sugerimos
