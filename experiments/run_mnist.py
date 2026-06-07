@@ -10,7 +10,7 @@ from wisard.metrics import run_experiment
 # max_samples=10_000 keeps training tractable; increase to use more data.
 SIMPLE_PARAMS = dict(address_size=8, resolution=8)
 KALMAN_PARAMS = dict(address_size=8, resolution=8, q=1e-3, r=5e-2, p0=1.0, n_epochs=1)
-SEEDS = [0, 1, 2, 3, 4]
+SEEDS = list(range(20))
 MAX_SAMPLES = 10_000
 
 
