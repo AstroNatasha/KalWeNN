@@ -21,7 +21,13 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 
 from wisard.models_v2 import ClassicWiSARD, KalmanV2
-from datasets.loaders import get_wine, get_mnist
+from datasets.loaders import (
+    get_wine, get_iris, get_breast_cancer, get_digits, get_glass,
+    get_vehicle, get_segment, get_vowel, get_satellite, get_mnist,
+    get_pendigits, get_optdigits, get_letter, get_texture, get_waveform,
+    get_spambase, get_ionosphere, get_sonar, get_yeast,
+    get_mfeat_fourier, get_mfeat_karhunen,
+)
 
 # ── configuração global ──────────────────────────────────────────────────────────
 
@@ -48,12 +54,38 @@ FIG.mkdir(parents=True, exist_ok=True)
 CFG.mkdir(parents=True, exist_ok=True)
 
 
+_LOADERS = {
+    "wine": get_wine,
+    "iris": get_iris,
+    "breast_cancer": get_breast_cancer,
+    "digits": get_digits,
+    "glass": get_glass,
+    "vehicle": get_vehicle,
+    "segment": get_segment,
+    "vowel": get_vowel,
+    "satellite": get_satellite,
+    # extras
+    "pendigits": get_pendigits,
+    "optdigits": get_optdigits,
+    "letter": get_letter,
+    "texture": get_texture,
+    "waveform": get_waveform,
+    "spambase": get_spambase,
+    "ionosphere": get_ionosphere,
+    "sonar": get_sonar,
+    "yeast": get_yeast,
+    "mfeat_fourier": get_mfeat_fourier,
+    "mfeat_karhunen": get_mfeat_karhunen,
+}
+DATASETS = list(_LOADERS) + ["mnist"]
+
+
 def get_data(name: str):
-    if name == "wine":
-        return get_wine()
     if name == "mnist":
         return get_mnist(max_samples=10_000)
-    raise ValueError(name)
+    if name in _LOADERS:
+        return _LOADERS[name]()
+    raise ValueError(f"dataset desconhecido: {name}. Opções: {DATASETS}")
 
 
 def split(X, y, seed):
@@ -62,18 +94,46 @@ def split(X, y, seed):
 
 # ── avaliação genérica ───────────────────────────────────────────────────────────
 
+METRIC_KEYS = ["acc", "f1_macro", "precision_macro", "recall_macro",
+               "balanced_acc", "kappa", "train_t", "test_t", "mem"]
+METRIC_LABELS = {
+    "acc": "Acurácia", "f1_macro": "F1 (macro)",
+    "precision_macro": "Precisão (macro)", "recall_macro": "Recall (macro)",
+    "balanced_acc": "Acur. balanceada", "kappa": "Cohen's κ",
+    "train_t": "Tempo treino (s)", "test_t": "Tempo inferência (s)",
+    "mem": "Memória (bytes)",
+}
+
+
 def eval_over_seeds(make_model, X, y, seeds):
-    """make_model(seed) -> modelo. Retorna dict com listas por seed."""
-    accs, train_t, mem = [], [], []
+    """make_model(seed) -> modelo. Retorna dict de arrays (uma entrada por seed)
+    com acurácia, F1/precisão/recall macro, acurácia balanceada, kappa,
+    tempos de treino/inferência e memória."""
+    from sklearn.metrics import (
+        f1_score, precision_score, recall_score,
+        balanced_accuracy_score, cohen_kappa_score,
+    )
+    m = {k: [] for k in METRIC_KEYS}
     for seed in seeds:
         X_tr, X_te, y_tr, y_te = split(X, y, seed)
         model = make_model(seed)
+
         t0 = time.perf_counter()
         model.fit(X_tr, y_tr)
-        train_t.append(time.perf_counter() - t0)
-        accs.append(float((model.predict(X_te) == y_te).mean()))
-        mem.append(model.memory_bytes())
-    return {"acc": np.array(accs), "train_t": np.array(train_t), "mem": np.array(mem)}
+        m["train_t"].append(time.perf_counter() - t0)
+
+        t1 = time.perf_counter()
+        pred = model.predict(X_te)
+        m["test_t"].append(time.perf_counter() - t1)
+
+        m["acc"].append(float((pred == y_te).mean()))
+        m["f1_macro"].append(f1_score(y_te, pred, average="macro", zero_division=0))
+        m["precision_macro"].append(precision_score(y_te, pred, average="macro", zero_division=0))
+        m["recall_macro"].append(recall_score(y_te, pred, average="macro", zero_division=0))
+        m["balanced_acc"].append(balanced_accuracy_score(y_te, pred))
+        m["kappa"].append(cohen_kappa_score(y_te, pred))
+        m["mem"].append(model.memory_bytes())
+    return {k: np.array(v) for k, v in m.items()}
 
 
 # ── seleção de arquitetura (joelho do custo-benefício da clássica) ────────────────

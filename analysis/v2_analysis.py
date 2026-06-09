@@ -361,13 +361,18 @@ def run(ds):
     X, y = get_data(ds)
     results = final_comparison(cfg, X, y)
 
-    # tabela-resumo
+    # tabela-resumo (todas as métricas)
     summary = pd.DataFrame([{
         "model": m,
-        "mean_acc": results[m]["acc"].mean(),
-        "std_acc": results[m]["acc"].std(),
-        "cv_%": results[m]["acc"].std()/results[m]["acc"].mean()*100,
+        "acc": results[m]["acc"].mean(),
+        "f1_macro": results[m]["f1_macro"].mean(),
+        "precision_macro": results[m]["precision_macro"].mean(),
+        "recall_macro": results[m]["recall_macro"].mean(),
+        "balanced_acc": results[m]["balanced_acc"].mean(),
+        "kappa": results[m]["kappa"].mean(),
+        "cv_acc_%": results[m]["acc"].std()/results[m]["acc"].mean()*100,
         "train_ms": results[m]["train_t"].mean()*1000,
+        "test_ms": results[m]["test_t"].mean()*1000,
         "mem_MB": results[m]["mem"].mean()/1e6,
     } for m in ORDER])
     summary.to_csv(CFG / f"{ds}_final_summary.csv", index=False)
