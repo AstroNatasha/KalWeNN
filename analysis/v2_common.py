@@ -8,6 +8,7 @@ Desenho experimental:
   - 80% treino / 20% teste.  MNIST limitado a 10.000 exemplos.
 """
 
+import os
 import sys
 import time
 from pathlib import Path
@@ -21,6 +22,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 
 from wisard.models_v2 import ClassicWiSARD, KalmanV2
+from wisard.models_sparse import SparseClassicWiSARD, SparseKalman
 from datasets.loaders import (
     get_wine, get_iris, get_breast_cancer, get_digits, get_glass,
     get_vehicle, get_segment, get_vowel, get_satellite, get_mnist,
@@ -32,9 +34,11 @@ from datasets.loaders import (
 # ── configuração global ──────────────────────────────────────────────────────────
 
 TEST_SIZE   = 0.20
-GRID_SEEDS  = list(range(5))    # busca de hiperparâmetros
-FINAL_SEEDS = list(range(30))   # comparação final + testes de significância
-CURVE_SEEDS = list(range(10))   # learning curve / épocas
+# nº de seeds ajustável por ambiente (útil para runs pesados em modo sparse):
+#   WISARD_GRID_SEEDS=2 WISARD_FINAL_SEEDS=5 python3 ...
+GRID_SEEDS  = list(range(int(os.environ.get("WISARD_GRID_SEEDS", "5"))))    # busca de hiperparâmetros
+FINAL_SEEDS = list(range(int(os.environ.get("WISARD_FINAL_SEEDS", "30"))))  # comparação final
+CURVE_SEEDS = list(range(int(os.environ.get("WISARD_CURVE_SEEDS", "10"))))  # learning curve / épocas
 
 PALETTE = {
     "Classica":         "#4C72B0",   # WiSARD clássica (bleach=0)
@@ -52,6 +56,28 @@ FIG  = ROOT / "results" / "figures" / "v2"
 CFG  = ROOT / "results" / "v2"
 FIG.mkdir(parents=True, exist_ok=True)
 CFG.mkdir(parents=True, exist_ok=True)
+
+
+# ── backend de memória: "dense" (padrão) ou "sparse" (tuplas grandes) ─────────────
+# Selecionado por variável de ambiente, sem editar código:
+#   WISARD_BACKEND=sparse python3 analysis/v2_search.py mnist
+# Saídas do modo sparse recebem sufixo "_sparse" → não sobrescrevem os resultados densos.
+
+BACKEND = os.environ.get("WISARD_BACKEND", "dense").lower()
+if BACKEND not in ("dense", "sparse"):
+    raise ValueError(f"WISARD_BACKEND inválido: {BACKEND!r} (use 'dense' ou 'sparse')")
+TAG = "" if BACKEND == "dense" else f"_{BACKEND}"
+
+_CLASSIC = {"dense": ClassicWiSARD, "sparse": SparseClassicWiSARD}
+_KALMAN  = {"dense": KalmanV2,       "sparse": SparseKalman}
+
+
+def make_classic(**kw):
+    return _CLASSIC[BACKEND](**kw)
+
+
+def make_kalman(**kw):
+    return _KALMAN[BACKEND](**kw)
 
 
 _LOADERS = {
@@ -83,6 +109,8 @@ DATASETS = list(_LOADERS) + ["mnist"]
 def get_data(name: str):
     if name == "mnist":
         return get_mnist(max_samples=10_000)
+    if name == "mnist_full":
+        return get_mnist(max_samples=None)  # 70.000 amostras
     if name in _LOADERS:
         return _LOADERS[name]()
     raise ValueError(f"dataset desconhecido: {name}. Opções: {DATASETS}")
@@ -146,7 +174,7 @@ def select_architecture(X, y, address_sizes, resolutions, seeds, tol=0.01):
     for a in address_sizes:
         for r in resolutions:
             res = eval_over_seeds(
-                lambda s, a=a, r=r: ClassicWiSARD(address_size=a, resolution=r, seed=s, bleach=0),
+                lambda s, a=a, r=r: make_classic(address_size=a, resolution=r, seed=s, bleach=0),
                 X, y, seeds,
             )
             table.append({

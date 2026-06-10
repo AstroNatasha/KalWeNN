@@ -84,7 +84,7 @@ def sec1_performance(df):
     plt.tight_layout(); savefig("1_performance")
 
 
-# ── 2. Trade-off desempenho × custo ──────────────────────────────────────────
+# ── 2. Trade-off desempenho × custo ─────────────────────────────────────────
 
 def sec2_tradeoff(df):
     print("\n[2] Trade-off desempenho × custo")

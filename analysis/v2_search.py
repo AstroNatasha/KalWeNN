@@ -11,6 +11,7 @@ Uso:  python3 analysis/v2_search.py wine
       python3 analysis/v2_search.py mnist
 """
 
+import os
 import sys
 import json
 import itertools
@@ -24,21 +25,22 @@ import matplotlib.pyplot as plt
 
 from v2_common import (
     get_data, split, eval_over_seeds, select_architecture,
-    GRID_SEEDS, PALETTE, FIG, CFG,
+    make_classic, make_kalman, GRID_SEEDS, PALETTE, FIG, CFG, TAG,
 )
-from wisard.models_v2 import ClassicWiSARD, KalmanV2
 
-ADDR_SIZES  = [2, 3, 4, 5, 6, 7, 8]
-RESOLUTIONS = [4, 8, 12, 16, 24, 32]
+ADDR_SIZES  = [8, 16, 20, 28] 
+# alterar os endereços: 28 pra mnist, nos demais 20 (tupla é endereço) tuple size, iris consegue com 20.
+RESOLUTIONS = [8, 12, 20]
+#termometro mnist 2 ou 3. normalmente 10 bits pro resto. termometro do iris com 20.
 
 Q_VALS = [1e-4, 1e-3, 1e-2, 1e-1]
-R_VALS = [1e-3, 1e-2, 5e-2, 1e-1]
+R_VALS = [1e-3, 1e-2, 5e-2, 1e-1, 2e-1, 5e-1, 1.0, 2.0]
 
 BLEACH_VALS = [0, 1, 2, 3, 5, 8, 12, 20, 30, 50]
 
 
 def savefig(ds, name):
-    d = FIG / ds
+    d = FIG / f"{ds}{TAG}"
     d.mkdir(parents=True, exist_ok=True)
     plt.savefig(d / f"{name}.png", dpi=150, bbox_inches="tight")
     plt.close()
@@ -54,8 +56,8 @@ def kalman_grid(X, y, addr, res, seeds):
     for i, q in enumerate(Q_VALS):
         for j, r in enumerate(R_VALS):
             out = eval_over_seeds(
-                lambda s, q=q, r=r: KalmanV2(address_size=addr, resolution=res,
-                                             q=q, r=r, p0=1.0, n_epochs=1, seed=s),
+                lambda s, q=q, r=r: make_kalman(address_size=addr, resolution=res,
+                                                q=q, r=r, p0=1.0, n_epochs=1, seed=s),
                 X, y, seeds)
             acc = out["acc"].mean()
             grid[i, j] = acc
@@ -86,7 +88,7 @@ def bleach_sweep(X, y, addr, res, seeds):
     accs = np.zeros((len(seeds), len(BLEACH_VALS)))
     for si, seed in enumerate(seeds):
         X_tr, X_te, y_tr, y_te = split(X, y, seed)
-        model = ClassicWiSARD(address_size=addr, resolution=res, seed=seed).fit(X_tr, y_tr)
+        model = make_classic(address_size=addr, resolution=res, seed=seed).fit(X_tr, y_tr)
         for bi, b in enumerate(BLEACH_VALS):
             model.set_bleach(b)
             accs[si, bi] = (model.predict(X_te) == y_te).mean()
@@ -99,10 +101,17 @@ def run(ds):
     print(f"\n{'='*60}\n  BUSCA — {ds.upper()}\n{'='*60}")
     X, y = get_data(ds)
 
-    print("  Selecionando arquitetura (joelho da clássica)...")
-    addr, res, table = select_architecture(X, y, ADDR_SIZES, RESOLUTIONS, GRID_SEEDS)
-    print(f"    → address_size={addr}, resolution={res}")
-    pd.DataFrame(table).to_csv(CFG / f"{ds}_arch_table.csv", index=False)
+    force_addr = os.environ.get("WISARD_ADDR")
+    force_res = os.environ.get("WISARD_RES")
+    if force_addr and force_res:
+        addr, res = int(force_addr), int(force_res)
+        table = [{"address_size": addr, "resolution": res, "mean_acc": None, "mean_train_t": None}]
+        print(f"  Arquitetura FIXADA via ambiente → address_size={addr}, resolution={res}")
+    else:
+        print("  Selecionando arquitetura (joelho da clássica)...")
+        addr, res, table = select_architecture(X, y, ADDR_SIZES, RESOLUTIONS, GRID_SEEDS)
+        print(f"    → address_size={addr}, resolution={res}")
+    pd.DataFrame(table).to_csv(CFG / f"{ds}{TAG}_arch_table.csv", index=False)
 
     grid, (k_acc, k_params) = kalman_grid(X, y, addr, res, GRID_SEEDS)
     plot_kalman_heatmap(grid, ds)
@@ -123,9 +132,9 @@ def run(ds):
         "kalman_grid": grid.tolist(),
         "q_vals": Q_VALS, "r_vals": R_VALS,
     }
-    with open(CFG / f"{ds}_config.json", "w") as f:
+    with open(CFG / f"{ds}{TAG}_config.json", "w") as f:
         json.dump(config, f, indent=2)
-    print(f"  config salva → {CFG / f'{ds}_config.json'}")
+    print(f"  config salva → {CFG / f'{ds}{TAG}_config.json'}")
 
 
 if __name__ == "__main__":

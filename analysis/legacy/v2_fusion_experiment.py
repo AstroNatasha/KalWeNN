@@ -81,7 +81,7 @@ def save_and_plot(all_results):
     # gráfico: barras padrão vs pesado por dataset
     datasets = [r["dataset"] for r in all_results]
     x = np.arange(len(datasets)); width = 0.35
-    fig, ax = plt.subplots(figsize=(9, 6))
+    fig, ax = plt.subplots(figsize=(max(9, 1.1*len(datasets)), 6))
     fig.suptitle("Fusão de evidência por incerteza — padrão vs ponderado",
                  fontsize=13, fontweight="bold")
 
@@ -99,7 +99,7 @@ def save_and_plot(all_results):
             ax.text(bar.get_x()+bar.get_width()/2, m, f"{m:.2%}",
                     ha="center", va="bottom", fontsize=8)
 
-    ax.set_xticks(x); ax.set_xticklabels([d.upper() for d in datasets])
+    ax.set_xticks(x); ax.set_xticklabels([d.upper() for d in datasets], rotation=45, ha="right")
     ax.set_ylabel("Acurácia média"); ax.legend(fontsize=9)
     ax.set_title("Ponderar votos pela confiança da célula (p) — só possível na KWiSARD")
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:.0%}"))
@@ -109,9 +109,12 @@ def save_and_plot(all_results):
     print(f"Gráfico salvo → {out}")
 
     # versão com ZOOM por dataset (faixa relevante de cada um) ───────────────────
-    fig, axes = plt.subplots(1, len(all_results), figsize=(6*len(all_results), 5))
-    if len(all_results) == 1:
-        axes = [axes]
+    n = len(all_results)
+    ncols = min(4, n); nrows = int(np.ceil(n / ncols))
+    fig, axes = plt.subplots(nrows, ncols, figsize=(5*ncols, 4.2*nrows))
+    axes = np.atleast_1d(axes).ravel()
+    for ax in axes[n:]:
+        ax.axis("off")
     fig.suptitle("Fusão por incerteza — zoom na faixa relevante",
                  fontsize=13, fontweight="bold")
     for ax, res in zip(axes, all_results):
@@ -140,8 +143,19 @@ def save_and_plot(all_results):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        run(sys.argv[1])
+    arg = sys.argv[1] if len(sys.argv) > 1 else "all"
+    if arg == "all":
+        names = sorted(p.name.replace("_config.json", "")
+                       for p in CFG.glob("*_config.json"))
     else:
-        results = [run("wine"), run("mnist")]
+        names = [arg]
+
+    results = []
+    for ds in names:
+        if not (CFG / f"{ds}_config.json").exists():
+            print(f"  pulando {ds}: sem config (rode v2_search.py {ds} antes)")
+            continue
+        results.append(run(ds))
+
+    if results:
         save_and_plot(results)

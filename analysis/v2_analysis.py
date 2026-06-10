@@ -32,9 +32,9 @@ from sklearn.metrics import confusion_matrix
 
 from v2_common import (
     get_data, split, eval_over_seeds,
-    FINAL_SEEDS, CURVE_SEEDS, PALETTE, MODEL_LABELS, FIG, CFG,
+    make_classic, make_kalman,
+    FINAL_SEEDS, CURVE_SEEDS, PALETTE, MODEL_LABELS, FIG, CFG, TAG,
 )
-from wisard.models_v2 import ClassicWiSARD, KalmanV2
 
 ORDER = ["Classica", "Classica+Bleach", "KalmanWiSARD"]
 EPOCHS_RANGE = [1, 2, 3, 5, 8]
@@ -43,7 +43,7 @@ TRAIN_FRACS  = [0.1, 0.25, 0.5, 0.75, 1.0]
 
 
 def savefig(ds, name):
-    d = FIG / ds
+    d = FIG / f"{ds}{TAG}"
     d.mkdir(parents=True, exist_ok=True)
     plt.savefig(d / f"{name}.png", dpi=150, bbox_inches="tight")
     plt.close()
@@ -55,10 +55,10 @@ def make_models(cfg):
     k = cfg["kalman"]
     b = cfg["best_bleach"]
     return {
-        "Classica":        lambda s: ClassicWiSARD(address_size=a, resolution=r, seed=s, bleach=0),
-        "Classica+Bleach": lambda s: ClassicWiSARD(address_size=a, resolution=r, seed=s, bleach=b),
-        "KalmanWiSARD":    lambda s: KalmanV2(address_size=a, resolution=r, seed=s,
-                                              q=k["q"], r=k["r"], p0=k["p0"], n_epochs=k["n_epochs"]),
+        "Classica":        lambda s: make_classic(address_size=a, resolution=r, seed=s, bleach=0),
+        "Classica+Bleach": lambda s: make_classic(address_size=a, resolution=r, seed=s, bleach=b),
+        "KalmanWiSARD":    lambda s: make_kalman(address_size=a, resolution=r, seed=s,
+                                                 q=k["q"], r=k["r"], p0=k["p0"], n_epochs=k["n_epochs"]),
     }
 
 
@@ -256,8 +256,8 @@ def fig_epochs(cfg, X, y, ds):
         accs = []
         for seed in EPOCH_SEEDS:
             X_tr, X_te, y_tr, y_te = split(X, y, seed)
-            m = KalmanV2(address_size=a, resolution=r, seed=seed,
-                         q=k["q"], r=k["r"], p0=k["p0"], n_epochs=e).fit(X_tr, y_tr)
+            m = make_kalman(address_size=a, resolution=r, seed=seed,
+                            q=k["q"], r=k["r"], p0=k["p0"], n_epochs=e).fit(X_tr, y_tr)
             accs.append((m.predict(X_te) == y_te).mean())
         means.append(np.mean(accs)); stds.append(np.std(accs))
     means, stds = np.array(means), np.array(stds)
@@ -349,7 +349,7 @@ def fig_per_class(cfg, X, y, ds):
 # ── main ─────────────────────────────────────────────────────────────────────────
 
 def run(ds):
-    cfg_path = CFG / f"{ds}_config.json"
+    cfg_path = CFG / f"{ds}{TAG}_config.json"
     if not cfg_path.exists():
         print(f"ERRO: rode primeiro  python3 analysis/v2_search.py {ds}")
         sys.exit(1)
@@ -375,7 +375,7 @@ def run(ds):
         "test_ms": results[m]["test_t"].mean()*1000,
         "mem_MB": results[m]["mem"].mean()/1e6,
     } for m in ORDER])
-    summary.to_csv(CFG / f"{ds}_final_summary.csv", index=False)
+    summary.to_csv(CFG / f"{ds}{TAG}_final_summary.csv", index=False)
     print("\n" + summary.to_string(index=False) + "\n")
 
     fig_accuracy(results, ds)
