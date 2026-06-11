@@ -37,12 +37,21 @@ X_tr, y_tr = X[:60000], y[:60000]
 X_te, y_te = X[60000:], y[60000:]
 print(f"treino oficial = {len(X_tr)} | teste oficial = {len(X_te)}\n")
 
-# ── Clássica (b=0) ────────────────────────────────────────────────────────────
-c = SparseClassicWiSARD(ADDR, RES, seed=0).fit(X_tr, y_tr)
-print(f"Clássica b=0: {(c.predict(X_te) == y_te).mean():.4f}\n")
+# ── Clássica (b=0) e Kalman, ambos com N_SEEDS seeds ──────────────────────────
+N_SEEDS = 30
 
-# ── Kalman (3 seeds, para ver estabilidade) ───────────────────────────────────
-for seed in range(3):
+acc_c, acc_k = [], []
+for seed in range(N_SEEDS):
+    c = SparseClassicWiSARD(ADDR, RES, seed=seed).fit(X_tr, y_tr)
+    acc_c.append(float((c.predict(X_te) == y_te).mean()))
     m = SparseKalman(ADDR, RES, seed=seed,
                      q=k["q"], r=k["r"], p0=1.0, n_epochs=1).fit(X_tr, y_tr)
-    print(f"Kalman seed {seed}: {(m.predict(X_te) == y_te).mean():.4f}")
+    acc_k.append(float((m.predict(X_te) == y_te).mean()))
+    print(f"  seed {seed:2d}: clássica={acc_c[-1]:.4f} | kalman={acc_k[-1]:.4f}")
+
+acc_c, acc_k = np.array(acc_c), np.array(acc_k)
+print(f"\n{'='*60}")
+for name, a in [("Clássica b=0", acc_c), ("Kalman", acc_k)]:
+    cv = a.std() / a.mean() * 100
+    print(f"{name:14s}: média={a.mean():.4f} ± {a.std():.4f} | "
+          f"CV={cv:.2f}% | pior={a.min():.4f} | melhor={a.max():.4f}")

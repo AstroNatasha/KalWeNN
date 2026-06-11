@@ -34,7 +34,7 @@ RESOLUTIONS = [8, 12, 20]
 #termometro mnist 2 ou 3. normalmente 10 bits pro resto. termometro do iris com 20.
 
 Q_VALS = [1e-4, 1e-3, 1e-2, 1e-1]
-R_VALS = [1e-3, 1e-2, 5e-2, 1e-1, 2e-1, 5e-1, 1.0, 2.0]
+R_VALS = [1e-3, 1e-2, 5e-2, 1e-1, 2e-1, 5e-1, 1.0, 2.0, 5.0, 10.0]
 
 BLEACH_VALS = [0, 1, 2, 3, 5, 8, 12, 20, 30, 50]
 
