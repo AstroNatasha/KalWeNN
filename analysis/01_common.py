@@ -1,11 +1,19 @@
 """
-Utilidades compartilhadas do estudo comparativo v2.
+01_common — base compartilhada de todo o estudo (rodar primeiro).
+
+Reúne tudo que os outros arquivos numerados reaproveitam:
+  - carregamento dos datasets e split treino/teste;
+  - backend de memória (denso / esparso) e fábricas dos modelos;
+  - avaliação genérica sobre várias seeds (acurácia, F1, tempos, memória);
+  - nomes e paleta neon usados nas figuras (02/03);
+  - caminhos padrão de resultados e figuras.
+
+Não é executável por conta própria — é importado pelos demais via importlib
+(o nome começa com dígito, então não dá para "import 01_common").
 
 Desenho experimental:
-  - address_size e resolution FIXOS e IGUAIS para os 3 modelos (isola a regra de update).
-  - arquitetura escolhida pelo "joelho" do custo-benefício da WiSARD clássica
-    (menor/mais rápida que chega a 1pp do pico de acurácia).
-  - 80% treino / 20% teste.  MNIST limitado a 10.000 exemplos.
+  - address_size e resolution FIXOS e IGUAIS entre os modelos (isola o update).
+  - 80% treino / 20% teste; MNIST usa o split OFICIAL 60k/10k.
 """
 
 import os
@@ -21,8 +29,7 @@ warnings.filterwarnings("ignore")
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-from wisard.models_v2 import ClassicWiSARD, KalmanV2
-from wisard.models_sparse import SparseClassicWiSARD, SparseKalman
+from wisard.models import ClassicWiSARD, KalmanV2, SparseClassicWiSARD, SparseKalman
 from datasets.loaders import (
     get_wine, get_iris, get_breast_cancer, get_digits, get_glass,
     get_vehicle, get_segment, get_vowel, get_satellite, get_mnist,
@@ -31,8 +38,16 @@ from datasets.loaders import (
     get_mfeat_fourier, get_mfeat_karhunen,
 )
 
-# ── configuração global ──────────────────────────────────────────────────────────
+# ── caminhos ──────────────────────────────────────────────────────────────────
+ROOT         = Path(__file__).resolve().parents[1]
+FIG          = ROOT / "results" / "figures" / "v2"
+CFG          = ROOT / "results" / "v2"
+PRESENTATION = ROOT / "results" / "figures" / "presentation"
+REPORT_CSV   = CFG / "tuple_comparison_report.csv"
+for _d in (FIG, CFG, PRESENTATION):
+    _d.mkdir(parents=True, exist_ok=True)
 
+# ── configuração global ───────────────────────────────────────────────────────
 TEST_SIZE   = 0.20
 # nº de seeds ajustável por ambiente (útil para runs pesados em modo sparse):
 #   WISARD_GRID_SEEDS=2 WISARD_FINAL_SEEDS=5 python3 ...
@@ -40,6 +55,24 @@ GRID_SEEDS  = list(range(int(os.environ.get("WISARD_GRID_SEEDS", "5"))))    # bu
 FINAL_SEEDS = list(range(int(os.environ.get("WISARD_FINAL_SEEDS", "30"))))  # comparação final
 CURVE_SEEDS = list(range(int(os.environ.get("WISARD_CURVE_SEEDS", "10"))))  # learning curve / épocas
 
+# ── nomes dos 4 modelos ───────────────────────────────────────────────────────
+# Chaves internas (como aparecem no CSV) → nomes de exibição (figuras/tabelas).
+MODEL_KEYS = ["Wisard", "Kalman WNN", "DictWisard", "Dict Kalman WNN"]
+MODEL_DISPLAY = {
+    "Wisard":          "WiSARD",
+    "Kalman WNN":      "KalWeNN",
+    "DictWisard":      "WiSARD (dict)",
+    "Dict Kalman WNN": "KalWeNN (dict)",
+}
+
+# ── paleta neon/dark (figuras da apresentação, SVG transparente) ──────────────
+NEON = dict(
+    BG="#1E0B36", CARD="#3A1D6E", BAND="#2A1450",
+    MAGENTA="#FF2E92", CYAN="#00E5FF", YELLOW="#FFD23F", GREEN="#3DFF8E",
+    TEXTC="#F4EFFF", LILAC="#B9A7E0", VIOLET="#6C2BD9",
+)
+
+# paleta antiga (usada por figuras de experimento em 04)
 PALETTE = {
     "Classica":         "#4C72B0",   # WiSARD clássica (bleach=0)
     "Classica+Bleach":  "#55A868",   # WiSARD clássica com bleaching
@@ -51,18 +84,43 @@ MODEL_LABELS = {
     "KalmanWiSARD":    "Kalman\nWiSARD",
 }
 
-ROOT = Path(__file__).resolve().parents[1]
-FIG  = ROOT / "results" / "figures" / "v2"
-CFG  = ROOT / "results" / "v2"
-FIG.mkdir(parents=True, exist_ok=True)
-CFG.mkdir(parents=True, exist_ok=True)
+
+def set_neon_style():
+    """Aplica o estilo neon base do matplotlib (fundo transparente, eixos lilás)."""
+    import matplotlib.pyplot as plt
+    n = NEON
+    plt.rcParams.update({
+        "font.size": 13, "axes.titlesize": 18, "axes.labelsize": 14,
+        "axes.edgecolor": n["VIOLET"], "axes.linewidth": 1.2,
+        "axes.facecolor": "none", "figure.facecolor": "none",
+        "xtick.color": n["LILAC"], "ytick.color": n["LILAC"],
+        "text.color": n["TEXTC"], "axes.labelcolor": n["TEXTC"],
+        "savefig.dpi": 150, "font.family": "DejaVu Sans",
+    })
 
 
-# ── backend de memória: "dense" (padrão) ou "sparse" (tuplas grandes) ─────────────
+def nospines(ax):
+    """Remove as bordas de cima/direita e pinta os ticks de lilás."""
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+    ax.tick_params(colors=NEON["LILAC"])
+
+
+def save_fig(fig, name, out=PRESENTATION, tight=True):
+    """Salva SVG transparente (entregável) + PNG com fundo (conferência)."""
+    if tight:
+        fig.tight_layout()
+    out.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out / f"{name}.svg", format="svg", transparent=True, bbox_inches="tight")
+    fig.savefig(out / f"{name}.png", facecolor=NEON["BG"], bbox_inches="tight")
+    import matplotlib.pyplot as plt
+    plt.close(fig)
+    print("  salvo →", out / f"{name}.svg")
+
+
+# ── backend de memória: "dense" (padrão) ou "sparse" (tuplas grandes) ─────────
 # Selecionado por variável de ambiente, sem editar código:
-#   WISARD_BACKEND=sparse python3 analysis/v2_search.py mnist
-# Saídas do modo sparse recebem sufixo "_sparse" → não sobrescrevem os resultados densos.
-
+#   WISARD_BACKEND=sparse python3 analysis/02_search.py mnist
 BACKEND = os.environ.get("WISARD_BACKEND", "dense").lower()
 if BACKEND not in ("dense", "sparse"):
     raise ValueError(f"WISARD_BACKEND inválido: {BACKEND!r} (use 'dense' ou 'sparse')")
@@ -80,6 +138,7 @@ def make_kalman(**kw):
     return _KALMAN[BACKEND](**kw)
 
 
+# ── datasets ──────────────────────────────────────────────────────────────────
 _LOADERS = {
     "wine": get_wine,
     "iris": get_iris,
@@ -120,8 +179,7 @@ def split(X, y, seed):
     return train_test_split(X, y, test_size=TEST_SIZE, random_state=seed, stratify=y)
 
 
-# ── avaliação genérica ───────────────────────────────────────────────────────────
-
+# ── avaliação genérica ────────────────────────────────────────────────────────
 METRIC_KEYS = ["acc", "f1_macro", "precision_macro", "recall_macro",
                "balanced_acc", "kappa", "train_t", "test_t", "mem"]
 METRIC_LABELS = {
@@ -164,8 +222,7 @@ def eval_over_seeds(make_model, X, y, seeds):
     return {k: np.array(v) for k, v in m.items()}
 
 
-# ── seleção de arquitetura (joelho do custo-benefício da clássica) ────────────────
-
+# ── seleção de arquitetura (joelho do custo-benefício da clássica) ────────────
 def select_architecture(X, y, address_sizes, resolutions, seeds, tol=0.01):
     """Varre address_size × resolution na ClassicWiSARD (bleach=0).
     Escolhe a config mais barata (menor tempo de treino) dentro de `tol`
@@ -188,8 +245,7 @@ def select_architecture(X, y, address_sizes, resolutions, seeds, tol=0.01):
     return best["address_size"], best["resolution"], table
 
 
-# ── confiança / curva de rejeição ────────────────────────────────────────────────
-
+# ── confiança / curva de rejeição ─────────────────────────────────────────────
 def accuracy_rejection_curve(confidence, correct, fractions):
     """Para cada fração rejeitada (descartando os menos confiantes),
     retorna a acurácia nas amostras remanescentes."""

@@ -1,30 +1,33 @@
 """
-Comparativo de regimes de arquitetura — tuplas pequenas vs grandes.
+02_search — busca de hiperparâmetros e comparação dos 4 modelos (rodar depois do 01).
 
-Para cada dataset, em DOIS regimes de (tupla, termômetro):
-  - pequeno: tupla=8,  termômetro=16   → memória DENSA
-  - grande : tupla=20, termômetro=20   → memória ESPARSA
-             (exceto MNIST no regime grande: tupla=28, termômetro=3)
-roda:
-  - WiSARD clássica (b=0)
-  - Kalman-WiSARD com grid search de (q, r) sobre a tupla/termômetro FIXOS do regime
+Para cada dataset, em DOIS regimes de (tupla, termômetro), roda os 4 modelos:
 
-Split aleatório 80/20 com seeds.
+  regime pequeno (memória DENSA, tupla=8, termômetro=16)
+    · WiSARD              (clássica, b=0)
+    · KalWeNN             (Kalman, grid search de q,r)
 
-Saída: UM relatório (CSV + tabela no terminal), SEM figuras, com colunas:
-  dataset | regime | modelo | tupla | termometro | acuracia | desvio | CV_% |
-  treino_s | teste_s | memoria_MB
+  regime grande (memória ESPARSA, tupla=20, termômetro=20; MNIST: 28/3)
+    · WiSARD (dict)       (clássica esparsa, b=0)
+    · KalWeNN (dict)      (Kalman esparso, grid search de q,r)
 
-Uso:  python3 analysis/v2_tuple_comparison.py                 (lista padrão)
-      python3 analysis/v2_tuple_comparison.py wine iris mnist (datasets específicos)
+Split aleatório 80/20 por seed; MNIST usa o split OFICIAL 60k/10k.
+O grid de (q,r) é varrido com a tupla/termômetro FIXOS do regime.
+
+Saída: results/v2/tuple_comparison_report.csv (mescla com o que já existe), com
+colunas: dataset | modelo | tupla | termometro | acuracia | desvio | CV_% |
+treino_s | teste_s | memoria_MB
+
+Uso:  python3 analysis/02_search.py                  (lista padrão)
+      python3 analysis/02_search.py wine iris mnist  (datasets específicos)
 """
 
 import os
 import sys
 import time
+import importlib.util
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import warnings
@@ -33,15 +36,21 @@ warnings.filterwarnings("ignore")
 import numpy as np
 import pandas as pd
 
-from v2_common import get_data, split, CFG
+# ── carrega o 01_common (nome começa com dígito → via importlib) ──────────────
+_spec = importlib.util.spec_from_file_location(
+    "common01", Path(__file__).resolve().parent / "01_common.py")
+common = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(common)
+
+get_data, split, REPORT_CSV = common.get_data, common.split, common.REPORT_CSV
+
 from datasets.loaders import get_mnist
-from wisard.models_v2 import ClassicWiSARD, KalmanV2               # denso (tupla pequena)
-from wisard.models_sparse import SparseClassicWiSARD, SparseKalman  # esparso (tupla grande)
+from wisard.models import (ClassicWiSARD, KalmanV2,             # denso (tupla pequena)
+                           SparseClassicWiSARD, SparseKalman)  # esparso (tupla grande)
 
 MNIST_SET = ("mnist", "mnist_full")  # usam o split OFICIAL 60k/10k, não o 80/20
 
 # ── configuração ──────────────────────────────────────────────────────────────
-
 DATASETS_PADRAO = ["wine", "iris", "breast_cancer", "digits",
                    "vehicle", "segment", "vowel", "mnist"]
 
@@ -59,7 +68,7 @@ GRID_SEEDS = list(range(int(os.environ.get("WISARD_GRID_SEEDS", "3"))))  # busca
 def regime_arch(ds, regime):
     if regime == "pequeno":
         return SMALL
-    return LARGE_MNIST if ds in ("mnist", "mnist_full") else LARGE
+    return LARGE_MNIST if ds in MNIST_SET else LARGE
 
 
 def models_for(regime):
@@ -67,6 +76,14 @@ def models_for(regime):
     if regime == "pequeno":
         return ClassicWiSARD, KalmanV2
     return SparseClassicWiSARD, SparseKalman
+
+
+def model_name(modelo, regime):
+    """Nome do modelo conforme tipo + backend (denso/esparso)."""
+    sparse = (regime == "grande")
+    if modelo == "Clássica":
+        return "DictWisard" if sparse else "Wisard"
+    return "Dict Kalman WNN" if sparse else "Kalman WNN"
 
 
 def get_split(ds, X, y, seed):
@@ -125,6 +142,7 @@ def main(datasets):
             print("    clássica...")
             rc = eval_model(lambda s: Classic(addr, res, seed=s, bleach=0), ds, X, y, SEEDS)
             rows.append({"dataset": ds, "regime": regime, "modelo": "Clássica",
+                         "nome": model_name("Clássica", regime),
                          "tupla": addr, "termometro": res, **rc})
 
             print("    kalman (grid q,r)...")
@@ -133,9 +151,11 @@ def main(datasets):
                                              q=q, r=r, p0=1.0, n_epochs=1), ds, X, y, SEEDS)
             print(f"      melhor (q,r)=({q:g},{r:g})")
             rows.append({"dataset": ds, "regime": regime, "modelo": "Kalman",
+                         "nome": model_name("Kalman", regime),
                          "tupla": addr, "termometro": res, **rk})
 
     table = pd.DataFrame(rows)
+    table["modelo"] = table["nome"]   # modelo = nome bonito (Wisard, DictWisard, ...)
     rep = table.rename(columns={
         "acc": "acuracia", "std": "desvio", "cv": "CV_%",
         "train_t": "treino_s", "test_t": "teste_s"})
@@ -145,10 +165,15 @@ def main(datasets):
     rep["treino_s"] = rep["treino_s"].round(4)
     rep["teste_s"] = rep["teste_s"].round(4)
     rep["memoria_MB"] = (rep["mem"] / 1e6).round(4)
-    rep = rep[["dataset", "regime", "modelo", "tupla", "termometro",
-               "acuracia", "desvio", "CV_%", "treino_s", "teste_s", "memoria_MB"]]
+    cols = ["dataset", "modelo", "tupla", "termometro",
+            "acuracia", "desvio", "CV_%", "treino_s", "teste_s", "memoria_MB"]
+    rep = rep[cols]
 
-    out = CFG / "tuple_comparison_report.csv"
+    out = REPORT_CSV
+    if out.exists():  # MESCLA: mantém datasets já calculados, substitui/adiciona os atuais
+        old = pd.read_csv(out)
+        old = old[~old["dataset"].isin(rep["dataset"].unique())]
+        rep = pd.concat([old[cols], rep], ignore_index=True)
     rep.to_csv(out, index=False)
     print(f"\n{'='*70}\nRelatório salvo → {out}\n{'='*70}\n")
     print(rep.to_string(index=False))
