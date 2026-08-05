@@ -1,0 +1,9 @@
+dataset,agregador_nosso,agregador_referencia,nossa_ReW,wisardpkg_ReW,wisardpkg_ClusReW,ClusReW_cv%,ClusReW_params,segundos
+diabetes,exponential_fixed,unweighted,57.155087035353155,57.2003418798828,58.65680882019942,4.855767328782029,"{""minScore"": 0.1, ""threshold"": 20, ""discriminatorLimit"": 5}",4.2
+california,exponential_fixed,unweighted,0.6677099467097533,0.6714533855394642,0.7685688706406998,3.6487787498224415,"{""minScore"": 0.3, ""threshold"": 20, ""discriminatorLimit"": 5}",17.2
+airfoil,harmonic_power2,harmonic_power2,3.2000942957466947,3.2790495678322573,3.96674167332838,6.448600238010423,"{""minScore"": 0.7, ""threshold"": 100, ""discriminatorLimit"": 10}",3.3
+energy,median,unweighted,1.046196247567817,1.441218776290967,1.8397523214638785,21.780394186966824,"{""minScore"": 0.1, ""threshold"": 20, ""discriminatorLimit"": 5}",5.6
+concrete,power2,power2,9.334706056575666,9.754846393978848,10.647688727075563,7.305947271971906,"{""minScore"": 0.7, ""threshold"": 100, ""discriminatorLimit"": 10}",7.4
+abalone,power2,power2,2.2849783469988636,2.3305128196739275,2.4295259300193615,4.004590133343584,"{""minScore"": 0.5, ""threshold"": 50, ""discriminatorLimit"": 10}",14.6
+auto_mpg,unweighted,unweighted,2.81657011759798,2.9590409281254013,3.111257210306461,12.878125914600808,"{""minScore"": 0.1, ""threshold"": 20, ""discriminatorLimit"": 5}",2.5
+yacht,geometric,geometric,7.1350034193599585,7.222650566084468,8.59641814296278,16.026482769605046,"{""minScore"": 0.3, ""threshold"": 20, ""discriminatorLimit"": 5}",1.7

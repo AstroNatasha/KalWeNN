@@ -1,7 +1,7 @@
 """
 03_analysis — todas as figuras e tabelas do trabalho (rodar depois do 02).
 
-Lê results/v2/tuple_comparison_report.csv (gerado pelo 02_search) e os
+Lê results/results/tuple_comparison_report.csv (gerado pelo 02_search) e os
 *_sparse_config.json da busca, e escreve em results/figures/presentation/.
 Cada saída sai como SVG transparente (entregável) + PNG (conferência).
 

@@ -14,7 +14,7 @@ Para cada dataset, em DOIS regimes de (tupla, termômetro), roda os 4 modelos:
 Split aleatório 80/20 por seed; MNIST usa o split OFICIAL 60k/10k.
 O grid de (q,r) é varrido com a tupla/termômetro FIXOS do regime.
 
-Saída: results/v2/tuple_comparison_report.csv (mescla com o que já existe), com
+Saída: results/results/tuple_comparison_report.csv (mescla com o que já existe), com
 colunas: dataset | modelo | tupla | termometro | acuracia | desvio | CV_% |
 treino_s | teste_s | memoria_MB
 

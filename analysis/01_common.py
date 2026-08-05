@@ -40,8 +40,8 @@ from datasets.loaders import (
 
 # ── caminhos ──────────────────────────────────────────────────────────────────
 ROOT         = Path(__file__).resolve().parents[1]
-FIG          = ROOT / "results" / "figures" / "v2"
-CFG          = ROOT / "results" / "v2"
+FIG          = ROOT / "results" / "figures" / "experiments"
+CFG          = ROOT / "results" / "results"
 PRESENTATION = ROOT / "results" / "figures" / "presentation"
 REPORT_CSV   = CFG / "tuple_comparison_report.csv"
 for _d in (FIG, CFG, PRESENTATION):

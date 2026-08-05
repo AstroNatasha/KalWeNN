@@ -41,6 +41,8 @@ analysis/          pipeline numerado, na ordem de execução
   02_search.py     grid search dos 4 modelos → relatório CSV
   03_analysis.py   todas as figuras e tabelas
   04_experiments.py  experimentos extras (fusão na inferência, MNIST oficial, memória)
+  05_regression.py   estudo de regressão (ver README_REGRESSAO.md)
+  06_regression_analysis.py  figuras e tabelas da regressão
   legacy/          versões antigas, mantidas só como histórico
 
 results/           saídas geradas (CSV da busca, configs e figuras)
@@ -53,7 +55,7 @@ Os arquivos de `analysis/` seguem a ordem do número. O `01_common` não roda
 sozinho — é importado pelos demais.
 
 ```bash
-# 1. busca de hiperparâmetros + comparação dos 4 modelos → results/v2/tuple_comparison_report.csv
+# 1. busca de hiperparâmetros + comparação dos 4 modelos → results/results/tuple_comparison_report.csv
 python3 analysis/02_search.py                  # lista padrão de datasets
 python3 analysis/02_search.py wine iris mnist  # datasets específicos
 
@@ -126,6 +128,13 @@ pip install numpy pandas scikit-learn matplotlib scipy psutil
 ```
 
 `scipy` é usado nos heatmaps; `psutil` só na API antiga (`wisard/metrics.py`).
+
+## Extensão para regressão
+
+O mesmo confronto foi levado para problemas de alvo contínuo, comparando a
+**Regression WiSARD (ReW)** com uma KalWeNN de regressão em 8 datasets, split
+70/30, 30 seeds. Está documentado em **[README_REGRESSAO.md](README_REGRESSAO.md)**,
+com o pipeline em `analysis/05_regression.py` e `analysis/06_regression_analysis.py`.
 
 ## Notebook original
 
