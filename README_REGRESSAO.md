@@ -97,8 +97,6 @@ e `REG_MAX_SAMPLES` (padrão 5000; use 0 para tirar o teto).
 
 ## 3. Implementação — o que é próprio e o que veio de fora
 
-Esta seção existe porque a pergunta "o que foi feito à mão?" é a primeira que
-aparece na banca.
 
 ### 3.1 Todas as WiSARDs deste estudo foram escritas à mão
 
@@ -141,7 +139,7 @@ sudo — mas **não é preciso**: um Python 3.11 autocontido instalado no espaç
 usuário já traz os próprios cabeçalhos, e o pacote (de 2019/2020) compila
 naturalmente numa versão da época.
 
-Receita completa, sem nenhum privilégio administrativo:
+
 
 ```bash
 .venv/bin/pip install uv
