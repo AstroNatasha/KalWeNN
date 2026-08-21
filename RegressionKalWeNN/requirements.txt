@@ -1,0 +1,74 @@
+# Dependências do RegressionKalWeNN
+#
+# INSTALAÇÃO
+#
+#   pip install -r requirements.txt
+#
+# O wisardpkg NÃO está aqui e precisa de um passo separado, explicado no fim
+# deste arquivo. Motivo: a Regression WiSARD não está no branch que o PyPI
+# distribui.
+
+numpy>=1.24
+pandas>=2.0
+scipy>=1.10
+scikit-learn>=1.3
+matplotlib>=3.7
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# wisardpkg: instalar SEPARADAMENTE, e do branch develop
+# ─────────────────────────────────────────────────────────────────────────────
+#
+#   pip install pybind11
+#   pip install --no-build-isolation "git+https://github.com/IAZero/wisardpkg.git@develop"
+#
+# Três coisas que dão errado se ignoradas:
+#
+# 1. `pip install wisardpkg` traz a versão 1.6.3, que é o branch `master` e tem
+#    só Wisard, ClusWisard e Discriminator. A RegressionWisard existe apenas no
+#    branch `develop` (versão 2.0.0a7). O comando acima traz a certa.
+#
+# 2. O `--no-build-isolation` é obrigatório. Sem ele o build falha com
+#    `ModuleNotFoundError: No module named 'pybind11'`, porque o pacote precisa
+#    do pybind11 em tempo de compilação e não o declara direito.
+#
+# 3. É extensão C++ compilada, não Python puro. O arquivo instalado tem nome do
+#    tipo `wisardpkg.cpython-39-darwin.so`, ou seja, é específico da versão do
+#    Python e do sistema operacional. Não adianta copiar o .so entre máquinas,
+#    e por isso ele não é versionado neste repositório.
+#
+# Conferir se deu certo:
+#
+#   python3 -c "import wisardpkg as w; print(w.__version__, hasattr(w,'RegressionWisard'))"
+#
+# Deve imprimir:  2.0.0a7 True
+#
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# Se o notebook não achar o wisardpkg no VS Code
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Quase sempre é interpretador errado, não pacote faltando. Rode numa célula:
+#
+#   import sys; print(sys.executable)
+#
+# Se não for o mesmo interpretador em que você instalou, troque em
+# `Cmd+Shift+P` → `Python: Select Interpreter`, e também no seletor de kernel
+# no canto superior direito do notebook.
+#
+# O `.vscode/settings.json` deste repositório já aponta para o interpretador
+# certo, mas o VS Code às vezes precisa de um "Developer: Reload Window" para
+# pegar.
+#
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# Versões testadas (macOS, Python 3.9.6)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+#   numpy 2.0.2 | pandas 2.3.3 | scipy 1.13.1 | scikit-learn 1.6.1
+#   matplotlib 3.9.4 | wisardpkg 2.0.0a7 | pybind11 3.1.0
+#
+# Nota sobre scipy: em versões recentes o `boxcox_normmax` com o método padrão
+# `pearsonr` levanta `BracketError` em algumas colunas do House Prices. O
+# notebook 04 contorna isso deixando essas colunas sem transformar, e imprime
+# quais foram.

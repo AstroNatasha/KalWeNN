@@ -2,3 +2,11 @@
 .DS_Store
 __pycache__/
 *.pyc
+
+# codigo de terceiro, clonado do repositorio publico da tese (MIT).
+# ver RegressionKalWeNN/referencia_lusquino.md para como obter
+RegressionKalWeNN/referencia_lusquino/
+RegressionKalWeNN/test_vs_wisardpkg.py
+RegressionKalWeNN/referencia_lusquino.md
+RegressionKalWeNN/Literatura
+CLAUDE.md
