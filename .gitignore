@@ -1,12 +1,27 @@
+cat > .gitignore <<'EOF'
 .ipynb_checkpoints/
 .DS_Store
 __pycache__/
 *.pyc
 
+# dados brutos: grandes demais para o GitHub, baixados pelo notebook
+*.zip
+YearPredictionMSD.txt
+RegressionKalWeNN/YearPredictionMSD.txt
+
+# resultados gerados pelos notebooks
+RegressionKalWeNN/*.csv
+
+# PDFs de terceiros
+*.pdf
+
 # codigo de terceiro, clonado do repositorio publico da tese (MIT).
 # ver RegressionKalWeNN/referencia_lusquino.md para como obter
 RegressionKalWeNN/referencia_lusquino/
-RegressionKalWeNN/test_vs_wisardpkg.py
 RegressionKalWeNN/referencia_lusquino.md
-RegressionKalWeNN/Literatura
+RegressionKalWeNN/test_vs_wisardpkg.py
+
+# arquivos de estudo, so na maquina
 CLAUDE.md
+RegressionKalWeNN/Literatura
+EOF
